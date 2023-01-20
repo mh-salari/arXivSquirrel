@@ -1,0 +1,180 @@
+/*
+Created on Jan 21 2023
+@author: Hue (MohammadHossein) Salari
+@email:hue.salari@gmail.com
+*/
+
+package main
+
+import (
+	"encoding/xml"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
+	"arxiv.ai-hue.ir/arxiv/src/util"
+	"github.com/mmcdole/gofeed"
+)
+
+type Channel struct {
+	XMLName     xml.Name  `xml:"channel"`
+	Title       string    `xml:"title"`
+	Link        string    `xml:"link"`
+	Description string    `xml:"description"`
+	PubDate     time.Time `xml:"pubDate"`
+	Image       Image     `xml:"image"`
+	ItemList    []Item    `xml:"item"`
+}
+
+type Image struct {
+	Title string `xml:"title"`
+	Url   string `xml:"url"`
+	Link  string `xml:"link"`
+}
+
+type Item struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description Cdata  `xml:"description"`
+	// Thumbnail   string `xml:"media:thumbnail"`
+}
+
+type Cdata struct {
+	Value string `xml:",cdata"`
+}
+
+const basePath = "/var/www/arxiv.ai-hue.ir"
+const sitePath = "" //"https://arxiv.ai-hue.ir"
+
+func main() {
+
+	// Get the list of user Keywords from a local CSV file
+	keywords := util.ReadKeywords(filepath.Join(".", "keywords.csv"))
+
+	// Download and parsing the RSS feed for cs.CV list from arXiv
+	log.Println("Getting the list of latest Computer Vision and Pattern Recognition papers from arxiv.og 🗃️")
+	fp := gofeed.NewParser()
+	feed, _ := fp.ParseURL("https://export.arxiv.org/rss/cs.CV")
+
+	// ---------------------- Building the RSS feed ----------------------//
+	//Making the file path of our mascots/logo arXivSquirrel
+	imageUrl := filepath.Join(sitePath, "resources", "arXivSquirrel.png")
+
+	// Making the image data for RSS channel
+	image := Image{Title: "Hue personalized cs.CV updates on arXiv.org", Url: imageUrl, Link: imageUrl}
+
+	// Filling out the RSS chanel metadata
+	channel := &Channel{
+		Title:       "Hue personalized cs.CV updates on arXiv.org",
+		Link:        "arXiv.ai.hue.ir",
+		Description: "Selection of latest Computer Vision and Pattern Recognition (cs.CV) updates on the arXiv.org base on Hue keywords.", //+ strings.Join(keywords, ", "),
+		PubDate:     time.Now(),
+		Image:       image,
+		ItemList:    []Item{},
+	}
+
+	// Generating the Items of rss feed
+	// Filling out the RSS chanel metedata
+	for _, item := range feed.Items {
+
+		//Searching for the user target keywords in the paper title and description
+		matches := util.SearchKeywords(item.Title+" "+item.Description, keywords)
+
+		// if there is a mach, add that paper to RSS items
+		if len(matches) > 0 {
+			// Generate the link to pdf file of the paper
+			link := strings.Replace(item.Link, "abs", "pdf", 1)
+
+			// Get the paper name and extension
+			_, paperName := filepath.Split(link)
+
+			//Make a output path for this paper files
+			paperOutPath := filepath.Join(basePath, "papers", paperName)
+
+			// Generate dirs for the paper output dirs is doesn't exist
+			if _, err := os.Stat(paperOutPath); os.IsNotExist(err) {
+				err := os.MkdirAll(paperOutPath, os.ModePerm)
+				if err != nil {
+					log.Fatal(err)
+				}
+				//Downloading  the PDF file of the paper
+				log.Println("Downloading the PDF file from", link, "🦥...")
+				pdfPath := util.DownloadFile(paperOutPath, link)
+
+				// Converting the paper pages to images fo max 5 pages
+				log.Println("Converting the first five pages of pdf file to images 🐨...")
+				util.PdfToImage(pdfPath, paperOutPath)
+
+				// log.Println("Extracting images of the paper to create a thumbnail ...")
+				// makeThumbnail(pdfPath)
+
+				// Remove Downloaded pdf file to free up space!
+				log.Println("Removing downloaded PDF file 🦈.")
+				err = os.Remove(pdfPath)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+
+			// Get the tile of the paper, remove (arXiv __some_numbers__) from it
+			reg := regexp.MustCompile(`\(arXiv:.+\)`)
+			title := strings.TrimSpace(reg.ReplaceAllString(item.Title, "${1}"))
+
+			//  Add title and list of the matched keywords to the description
+			content := fmt.Sprintf("<b> <a href='%s'>%s</a></b><br><br>", item.Link, title)
+			content += "<b>Keywords: </b>" + strings.Join(matches, ", ") + "<br>"
+			content += item.Description
+
+			// Add max 5 images generated from each page of the PDF file to the description
+			imagesTable := "<table>\n<tr>\n"
+			for i := 0; i < 5; i++ {
+				// make the local address of the image on the dir to check if we have it or not
+				imagePath := filepath.Join(sitePath, "papers", paperName, fmt.Sprintf("%d.jpg", i))
+				// Just add the images that are available
+				if _, err := os.Stat(filepath.Join(basePath, imagePath)); err == nil {
+					imagesTable += fmt.Sprintf("<td><img src='%s' width='196' height='253'></td>\n", imagePath)
+				}
+			}
+			imagesTable += "\n</tr></table>"
+
+			// Add all of the data of each item to its positions in the channel.itemList
+			channel.ItemList = append(channel.ItemList, Item{
+				Title:       title,
+				Link:        item.Link,
+				Description: Cdata{content + imagesTable},
+				// Thumbnail:   "url='" + filepath.Join("papers", paperName, "thumbnail.png") + "' width='75' height='50'",
+			})
+			break
+		}
+
+	}
+
+	// Convert out channel struct to a xml file
+	newFeed, err := xml.MarshalIndent(channel, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create and empty XML file
+	rssOutPath := filepath.Join(basePath, "arxiv.xml")
+
+	file, err := os.Create(rssOutPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// write out XML data with RSS header to the local file
+	_, err = file.WriteString(xml.Header + "<rss version='2.0'>" + string(newFeed) + "</rss>")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Done!
+	fmt.Println("New RSS feed saved to", rssOutPath, "🦫.")
+
+}
