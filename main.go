@@ -148,7 +148,6 @@ func main() {
 				Description: Cdata{content + imagesTable},
 				// Thumbnail:   "url='" + filepath.Join("papers", paperName, "thumbnail.png") + "' width='75' height='50'",
 			})
-			break
 		}
 
 	}
