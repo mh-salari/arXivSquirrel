@@ -1,4 +1,4 @@
-# Welcome to arXivSquirrel <img src="https://arxiv.ai-hue.ir/arXivSquirrel_logo.jpeg" alt="logo" width="100"/>
+# Welcome to arXivSquirrel <img src="https://arxiv.ai-hue.ir/resources/arXivSquirrel.png" alt="logo" width="100"/>
 
 arXivSquirrel is a Go program that generates personalized RSS feeds from [arXiv.org](https://arxiv.org/) based on user keywords. With arXivSquirrel, you can easily keep track of the latest papers on your areas of interest without having to sift through the overwhelming number of new papers shared on arXiv every day.
 
