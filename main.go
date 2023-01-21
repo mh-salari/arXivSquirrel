@@ -173,7 +173,7 @@ func main() {
 		}
 
 	}
-	// don't generate an empty RSS file If we don't have any papers
+	// Don't generate an empty RSS file If we don't have any papers
 	if len(channel.ItemList) == 0 {
 		log.Printf("No new articles have been published in the last 24 hours 🙀!")
 		return
