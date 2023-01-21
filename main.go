@@ -87,10 +87,10 @@ func main() {
 		ItemList:    []Item{},
 	}
 
-	// Generating the Items of rss feed
-	// Filling out the RSS chanel metedata
 	// Calculate yesterday
 	previousDay := time.Now().UTC().AddDate(0, 0, -1).Truncate(24 * time.Hour)
+
+	// Generating the Items of rss feed
 	for _, item := range feed.Items {
 
 		published, err := time.Parse(time.RFC3339, item.Published)
@@ -173,7 +173,11 @@ func main() {
 		}
 
 	}
-
+	// don't generate an empty RSS file If we don't have any papers
+	if len(channel.ItemList) == 0 {
+		log.Printf("No new articles have been published in the last 24 hours 🙀!")
+		return
+	}
 	// Convert out channel struct to a xml file
 	newFeed, err := xml.MarshalIndent(channel, "", "  ")
 	if err != nil {
