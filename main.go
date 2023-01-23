@@ -127,7 +127,7 @@ func generateFeed(feed *gofeed.Feed, timePeriod time.Time, keywords []string) *C
 
 			//  Add title and list of the matched keywords to the description
 			content := fmt.Sprintf("<b> <a href='%s'>%s</a></b><br><br>", item.Link, title)
-			content += "<b>Keywords: </b>" + strings.Join(matches, ", ") + "<br>"
+			content += "<b>Keywords: </b>" + strings.Join(matches, ", ") + "<br><br>"
 			content += item.Description
 
 			// Add max 5 images generated from each page of the PDF file to the description
