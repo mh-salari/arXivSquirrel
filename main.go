@@ -49,29 +49,10 @@ type Cdata struct {
 }
 
 const basePath = "/var/www/arxiv.ai-hue.ir"
-const sitePath = "" //"https://arxiv.ai-hue.ir"
+const sitePath = "https://arxiv.ai-hue.ir"
 
-func main() {
+func generateFeed(feed *gofeed.Feed, timePeriod time.Time, keywords []string) *Channel {
 
-	// Create outputs path if not exist
-	err := os.MkdirAll(basePath, os.ModePerm)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Get the list of user Keywords from a local CSV file
-	keywords := util.ReadKeywords(filepath.Join(".", "keywords.csv"))
-
-	// Download and parsing the RSS feed for cs.CV list from arXiv
-	log.Println("Getting the list of latest Computer Vision and Pattern Recognition papers from arxiv.og 🗃️")
-	fp := gofeed.NewParser()
-	// feed, _ := fp.ParseURL("https://export.arxiv.org/rss/cs.CV")
-	feed, err := fp.ParseURL("http://export.arxiv.org/api/query?search_query=cat:cs.CV&sortBy=lastUpdatedDate&sortOrder=descending&max_results=250")
-	if err != nil {
-		log.Panic("Error in getting the RSS feed from arXiv\n", err)
-	}
-
-	// ---------------------- Building the RSS feed ----------------------//
 	//Making the file path of our mascots/logo arXivSquirrel
 	imageUrl := filepath.Join(sitePath, "resources", "arXivSquirrel.png")
 
@@ -88,19 +69,16 @@ func main() {
 		ItemList:    []Item{},
 	}
 
-	// Calculate yesterday
-	previousDay := time.Now().UTC().AddDate(0, 0, -1).Truncate(24 * time.Hour)
-
 	// Generating the Items of rss feed
 	for _, item := range feed.Items {
 
-		published, err := time.Parse(time.RFC3339, item.Published)
+		updated, err := time.Parse(time.RFC3339, item.Updated)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		// Ignore papers that have not published on the past 24 hours
-		if published.Before(previousDay) {
+		// Ignore papers that have not updated on the past 24 hours
+		if updated.Before(timePeriod) {
 			continue
 		}
 
@@ -175,11 +153,44 @@ func main() {
 		}
 
 	}
+	return channel
+}
+
+func main() {
+
+	// Create outputs path if not exist
+	err := os.MkdirAll(basePath, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get the list of user Keywords from a local CSV file
+	keywords := util.ReadKeywords(filepath.Join(".", "keywords.csv"))
+
+	// Download and parsing the RSS feed for cs.CV list from arXiv
+	log.Println("Getting the list of latest Computer Vision and Pattern Recognition papers from arxiv.og 🗃️")
+	fp := gofeed.NewParser()
+	// feed, _ := fp.ParseURL("https://export.arxiv.org/rss/cs.CV")
+	feed, err := fp.ParseURL("http://export.arxiv.org/api/query?search_query=cat:cs.CV&sortBy=lastUpdatedDate&sortOrder=descending&max_results=250")
+	if err != nil {
+		log.Panic("Error in getting the RSS feed from arXiv\n", err)
+	}
+
+	// ---------------------- Building the RSS feed ----------------------//
+	// Calculate yesterday
+	previousDay := time.Now().UTC().AddDate(0, 0, -1).Truncate(24 * time.Hour)
+	channel := generateFeed(feed, previousDay, keywords)
+
 	// Don't generate an empty RSS file If we don't have any papers
+	// It's probably the weekend and the arXiv feed hasn't updated
+	// So lets search for the papers published since 3 days ago
 	if len(channel.ItemList) == 0 {
 		log.Printf("No new articles have been published in the last 24 hours 🙀!")
-		return
+		timePeriod := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
+		log.Printf("Searching for the articles published in the last 72 hours!")
+		channel = generateFeed(feed, timePeriod, keywords)
 	}
+
 	// Convert out channel struct to a xml file
 	newFeed, err := xml.MarshalIndent(channel, "", "  ")
 	if err != nil {
