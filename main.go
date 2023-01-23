@@ -40,6 +40,7 @@ type Item struct {
 	Title       string `xml:"title"`
 	Link        string `xml:"link"`
 	Description Cdata  `xml:"description"`
+	Date        string `xml:"published"`
 	// Thumbnail   string `xml:"media:thumbnail"`
 }
 
@@ -168,6 +169,7 @@ func main() {
 				Title:       title,
 				Link:        item.Link,
 				Description: Cdata{content + imagesTable},
+				Date:        item.Published,
 				// Thumbnail:   "url='" + filepath.Join("papers", paperName, "thumbnail.png") + "' width='75' height='50'",
 			})
 		}
