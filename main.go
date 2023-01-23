@@ -134,10 +134,11 @@ func generateFeed(feed *gofeed.Feed, timePeriod time.Time, keywords []string) *C
 			imagesTable := "<table>\n<tr>\n"
 			for i := 0; i < 5; i++ {
 				// make the local address of the image on the dir to check if we have it or not
-				imagePath := filepath.Join(sitePath, "papers", paperName, fmt.Sprintf("%d.jpg", i))
-				// Just add the images that are available
+				imagePath := filepath.Join("papers", paperName, fmt.Sprintf("%d.jpg", i))
+				// Just add the images exist
 				if _, err := os.Stat(filepath.Join(basePath, imagePath)); err == nil {
-					imagesTable += fmt.Sprintf("<td><img src='%s' width='196' height='253'></td>\n", imagePath)
+					imageURL := filepath.Join(sitePath, imagePath)
+					imagesTable += fmt.Sprintf("<td><img src='%s' width='196' height='253'></td>\n", imageURL)
 				}
 			}
 			imagesTable += "\n</tr></table>"
