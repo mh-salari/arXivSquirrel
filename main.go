@@ -138,7 +138,7 @@ func generateFeed(feed *gofeed.Feed, timePeriod time.Time, keywords []string) *C
 				// Just add the images exist
 				if _, err := os.Stat(filepath.Join(basePath, imagePath)); err == nil {
 					imageURL := filepath.Join(sitePath, imagePath)
-					imagesTable += fmt.Sprintf("<td><img src='%s' width='196' height='253'></td>\n", imageURL)
+					imagesTable += fmt.Sprintf("<td><a href='%s'><img src='%s' width='212' height='275'></a></td>\n", imageURL, imageURL)
 				}
 			}
 			imagesTable += "\n</tr></table>"
