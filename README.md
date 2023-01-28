@@ -20,10 +20,12 @@ One of the unique features of arXivSquirrel is that it includes the image versio
     ```
 5. Run the program by running `./arxiv` in the project directory at you terminal
 
-6. The program will generate an RSS feed containing the latest papers on arXiv that match your keywords. You can subscribe to this feed using your preferred RSS reader, such as [Feedreader](https://feedreader.com) or [Akregator](https://apps.kde.org/akregator/).
+6. You can run the program by running `run.sh` file, simply give the path to the compiled `arxiv` file to it. it will try to run the app for 5 times.
 
-7. use crontab to run `./arxiv` every 3 to 6 hours.
-8. Enjoy staying up-to-date on the latest research in your areas of interest!
+7. The program will generate an RSS feed containing the latest papers on arXiv that match your keywords. You can subscribe to this feed using your preferred RSS reader, such as [Feedreader](https://feedreader.com) or [Akregator](https://apps.kde.org/akregator/).
+
+8. use crontab to run `./arxiv` every 24 hours.
+9. Enjoy staying up-to-date on the latest research in your areas of interest!
 
 ## Notes:
 
