@@ -63,7 +63,7 @@ func generateFeed(feed *gofeed.Feed, timePeriod time.Time, keywords []string) *C
 	channel := &Channel{
 		Title:       "Hue personalized cs.CV updates on arXiv.org",
 		Link:        "arXiv.ai.hue.ir",
-		Description: "Selection of latest Computer Vision and Pattern Recognition (cs.CV) updates on the arXiv.org base on Hue keywords.", //+ strings.Join(keywords, ", "),
+		Description: "Selection of latest Computer Science updates on the arXiv.org base on Hue keywords.", //+ strings.Join(keywords, ", "),
 		PubDate:     time.Now(),
 		Image:       image,
 		ItemList:    []Item{},
@@ -167,20 +167,47 @@ func main() {
 
 	// Get the list of user Keywords from a local CSV file
 	keywords := util.ReadKeywords(filepath.Join(".", "keywords.csv"))
-
+	log.Println(keywords)
+	
 	// Download and parsing the RSS feed for cs.CV list from arXiv
-	log.Println("Getting the list of latest Computer Vision and Pattern Recognition papers from arxiv.og 🗃️")
+	log.Println("Getting the list of latest Computer Science and Pattern Recognition papers from arxiv.og 🗃️")
+
 	fp := gofeed.NewParser()
-	// feed, _ := fp.ParseURL("https://export.arxiv.org/rss/cs.CV")
-	feed, err := fp.ParseURL("http://export.arxiv.org/api/query?search_query=cat:cs.CV&sortBy=lastUpdatedDate&sortOrder=descending&max_results=250")
-	if err != nil {
-		log.Panic("Error in getting the RSS feed from arXiv\n", err)
+
+	// Define the categories you want to search for
+	categories := []string{"cs.HC", "cs.CV", "cs.AI", "cs.RO", "cs.CL", "cs.SE", "cs.LG"}
+
+	var allItems []*gofeed.Item
+
+	// Loop through each category and fetch items
+	for idx, category := range categories {
+		searchQuery := "cat:" + category
+		url := fmt.Sprintf("http://export.arxiv.org/api/query?search_query=%s&sortBy=lastUpdatedDate&sortOrder=descending&max_results=250", searchQuery)
+		
+		log.Printf("Fetching articles for category %s (%d/%d)...", category, idx+1, len(categories))
+
+		feed, err := fp.ParseURL(url)
+		if err != nil {
+			log.Panicf("Error in getting the RSS feed from arXiv for category %s\n", category, err)
+		}
+
+		allItems = append(allItems, feed.Items...)
+
+		log.Printf("Fetched %d articles for category %s.", len(feed.Items), category)
+	}
+
+
+	// Construct a new feed from the fetched items
+	constructedFeed := &gofeed.Feed{
+	    Items: allItems,
 	}
 
 	// ---------------------- Building the RSS feed ----------------------//
 	// Calculate yesterday
 	previousDay := time.Now().UTC().AddDate(0, 0, -1).Truncate(24 * time.Hour)
-	channel := generateFeed(feed, previousDay, keywords)
+
+	// We now pass allItems instead of feed to the generateFeed function. If generateFeed expects a feed, you will need to adjust it.
+	channel := generateFeed(constructedFeed, previousDay, keywords)
 
 	// Don't generate an empty RSS file If we don't have any papers
 	// It's probably the weekend and the arXiv feed hasn't updated
@@ -189,8 +216,9 @@ func main() {
 		log.Printf("No new articles have been published in the last 24 hours 🙀!")
 		timePeriod := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
 		log.Printf("Searching for the articles published in the last 72 hours!")
-		channel = generateFeed(feed, timePeriod, keywords)
+		channel = generateFeed(constructedFeed, timePeriod, keywords)
 	}
+
 
 	// Convert out channel struct to a xml file
 	newFeed, err := xml.MarshalIndent(channel, "", "  ")
